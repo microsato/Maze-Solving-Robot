@@ -2,6 +2,10 @@
 #include <stdio.h>
 #include <string.h>
 //------------------------------------------------Variables ----------------------------------------
+typedef int bool;
+#define true 1
+#define false 0
+bool buttonPressed=false;
 int RightMotorForward = 0b1; //Shrivel left
 int RightMotorBack = 0b010;
 int LeftMotorForward = 0b100000; //shrivel right
@@ -9,6 +13,7 @@ int TurnLeftMotors = 0b1000001;
 int TurnRightMotors = 0b0100010;
 int ReverseMotors = 0b1000010;
 int BothForward = 0b0100001;
+bool doneTurning = true;
 //------------------------------------------------FUNCTION DEFINITIONS------------------------------
 void init_GPIO(void);
 void init_pwm(void);
@@ -18,11 +23,91 @@ void init_NVIC(void);
 
 // --------------------------------------------------MAIN-------------------------------------------
 void main (void){
-  init_GPIO();
+  	init_GPIO();
 	init_pwm();
-	init_EXTI();
-	init_NVIC();
-	for(;;){}
+	
+	if (!(GPIOB->IDR & GPIO_IDR_10)){ //if button on PB10 pressed (goes low)
+		buttonPressed = true;
+	} 
+
+	while(buttonPressed){
+	if (GPIOB->IDR & GPIO_IDR_14){ //if only s3 high 
+	  straight();
+	  //go straight motor
+  	}
+  	else if ((GPIOB->IDR & GPIO_IDR_12)&&(GPIOB->IDR & GPIO_IDR_13)&&(GPIOB->IDR & GPIO_IDR_14)){ // |-
+		straight();
+	  // go straight
+  	}
+  	else if ((GPIOB->IDR & GPIO_IDR_12)&&(GPIOB->IDR & GPIO_IDR_13)){ // -
+	  turnRight(); //lock rotation - need to make 
+	  doneTurning = false;
+	  //delay
+	  while (!doneTurning){
+		  //might need delay here 
+		  if (GPIOB->IDR & GPIO_IDR_14){ //when s3 is high again it means we have reached turning destination
+			  doneTurning = true; //might need to add more sensor checks 
+		  }
+	  }
+	  
+  	}
+  	else if ((GPIOA->IDR & GPIO_IDR_8)&&(GPIOB->IDR & GPIO_IDR_15)&&(GPIOB->IDR & GPIO_IDR_14)){ // -|
+	  turnLeft(); //need to make
+	  doneTurning = false;
+	  //delay
+	  while (!doneTurning){
+		  if (GPIOB->IDR & GPIO_IDR_14){ //when s3 is high again it means we have reached turning destination
+			  doneTurning = true; //might need to add more sensor checks 
+		  }
+	  }
+  	}
+  	else if ((GPIOA->IDR & GPIO_IDR_8)&&(GPIOB->IDR & GPIO_IDR_15)){ // -
+	  turnLeft(); //need to make
+	  doneTurning = false;
+	  //delay
+	  while (!doneTurning){
+		  if (GPIOB->IDR & GPIO_IDR_14){ //when s3 is high again it means we have reached turning destination
+			  doneTurning = true; //might need to add more sensor checks 
+		  }
+	  }
+  	}
+  	else if ((GPIOA->IDR & GPIO_IDR_8)&&(GPIOB->IDR & GPIO_IDR_15)&&(GPIOB->IDR & GPIO_IDR_13)&&(GPIOB->IDR & GPIO_IDR_12)){ //T
+	  turnLeft(); //need to make
+	  doneTurning = false;
+	  //delay
+	  while (!doneTurning){
+		  if (GPIOB->IDR & GPIO_IDR_14){ //when s3 is high again it means we have reached turning destination
+			  doneTurning = true; //might need to add more sensor checks 
+		  }
+	  }
+  	}
+  	else if ((GPIOA->IDR & GPIO_IDR_8)&&(GPIOB->IDR & GPIO_IDR_15)&&(GPIOB->IDR & GPIO_IDR_14)&&(GPIOB->IDR & GPIO_IDR_13)&&(GPIOB->IDR & GPIO_IDR_12)){ //4 way
+	  turnLeft(); //need to make
+	  doneTurning = false;
+	  //delay
+	  while (!doneTurning){
+		  if (GPIOB->IDR & GPIO_IDR_14){ //when s3 is high again it means we have reached turning destination
+			  doneTurning = true; //might need to add more sensor checks 
+		  }
+	  }
+  	}
+  	else if ((GPIOA->IDR & GPIO_IDR_8)&&(GPIOB->IDR & GPIO_IDR_15)&&(GPIOB->IDR & GPIO_IDR_14)&&(GPIOB->IDR & GPIO_IDR_13)&&(GPIOB->IDR & GPIO_IDR_12)&&(GPIOA->IDR & GPIO_IDR_9)){
+	  endMaze();//need to make
+	  LED_ON(); //need to make
+  	}
+	else{ //no sensors are high = deadend 
+		turnAround();
+		doneTurning = false;
+		//delay 
+	  while (!doneTurning){
+		  if (GPIOB->IDR & GPIO_IDR_14){ //when s3 is high again it means we have reached turning destination
+			  doneTurning = true; //might need to add more sensor checks 
+		  }
+	  }
+	}
+
+
+	}
 }
 // ---------------------------------------------INIT GPIO-------------------------------------------
 void init_GPIO(void)
@@ -44,10 +129,10 @@ void init_GPIO(void)
 
 	/* Start up procedure pins */
 	/* inputs: start switch PB10 and LED0 PB1 */
-    	GPIOB->MODER &=~(GPIO_MODER_MODER10|GPIO_MODER_MODER1);//set mode on PB10 to
+    GPIOB->MODER &=~(GPIO_MODER_MODER10|GPIO_MODER_MODER1);//set mode on PB10 to
 	/* Pull-up resistor for start switch PB10 */
-    	GPIOB->PUPDR&=~(GPIO_PUPDR_PUPDR10);
-    	GPIOB->PUPDR|=(GPIO_PUPDR_PUPDR10_0);
+    GPIOB->PUPDR&=~(GPIO_PUPDR_PUPDR10);
+    GPIOB->PUPDR|=(GPIO_PUPDR_PUPDR10_0);
 
 /* Motor IC */
 	GPIOA ->MODER |=0b01010010100101;//Set PA3, PA2 AF mode and set PA0,A1,A5,A6 to output mode
@@ -75,52 +160,6 @@ void init_pwm(void)
   	TIM2->CCER |= TIM_CCER_CC4E;
 
   	TIM2->CR1 |= TIM_CR1_CEN; // counter enable
-
-}
-
-void init_EXTI(void) {
-  RCC->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN; // clock for the system configuration controller
-  SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PA; // set interrupt 12 to be sourced from port A for EXTICR4
-  //EXTI->IMR |= EXTI_IMR_MR0; // un-mask the interrupt ?? is this necessary ??
-  EXTI->RTSR |= EXTI_RTSR_TR0; // enable the rising edge trigger for interrupt 12
-
-}
-
-void init_NVIC(void) {
-  NVIC_EnableIRQ(EXTI4_15_IRQn);
-}
-
-void EXTI4_15_IRQHandler(void) {
-  // clear the interrupt pending bit by writing to it
-  EXTI->PR |= EXTI_PR_PR0;
-  if (!GPIOB->IDR & GPIO_IDR_10){
-	  GPIOA ->ODR |= TurnLeftMotors;
-  }
-  if (GPIOB->IDR & GPIO_IDR_14){ // |
-	  //go straight motor
-  }
-  if ((GPIOB->IDR & GPIO_IDR_12)&&(GPIOB->IDR & GPIO_IDR_13)&&(GPIOB->IDR & GPIO_IDR_14)){ // |-
-	  // go straight
-  }
-  if ((GPIOB->IDR & GPIO_IDR_12)&&(GPIOB->IDR & GPIO_IDR_13)){ // -
-	  //go right
-  }
-  if ((GPIOA->IDR & GPIO_IDR_8)&&(GPIOB->IDR & GPIO_IDR_15)&&(GPIOB->IDR & GPIO_IDR_14)){ // -|
-	  //go left
-  }
-  if ((GPIOA->IDR & GPIO_IDR_8)&&(GPIOB->IDR & GPIO_IDR_15)){ // -
-	  //go left
-  }
-  if ((GPIOA->IDR & GPIO_IDR_8)&&(GPIOB->IDR & GPIO_IDR_15)&&(GPIOB->IDR & GPIO_IDR_13)&&(GPIOB->IDR & GPIO_IDR_12)){ //T
-	  //go left
-  }
-  if ((GPIOA->IDR & GPIO_IDR_8)&&(GPIOB->IDR & GPIO_IDR_15)&&(GPIOB->IDR & GPIO_IDR_14)&&(GPIOB->IDR & GPIO_IDR_13)&&(GPIOB->IDR & GPIO_IDR_12)){ //4 way
-	  //go left
-  }
-  if ((GPIOA->IDR & GPIO_IDR_8)&&(GPIOB->IDR & GPIO_IDR_15)&&(GPIOB->IDR & GPIO_IDR_14)&&(GPIOB->IDR & GPIO_IDR_13)&&(GPIOB->IDR & GPIO_IDR_12)&&(GPIOA->IDR & GPIO_IDR_9)){
-	  //Stop
-	  //Flash LED
-  }
 
 }
 
