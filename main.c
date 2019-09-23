@@ -74,7 +74,7 @@ void main (void){
 	  doneTurning = false;
 	  //delay
 	  while (!doneTurning){
-		  if (GPIOB->IDR & GPIO_IDR_14){ //when s3 is high again it means we have reached turning destination
+		  if ((GPIOB->IDR & GPIO_IDR_14)&&(GPIOB-> GPIO_IDR_12)&&(GPIOB-> GPIO_IDR_13)&&(GPIOB-> GPIO_IDR_15)&&(GPIOA-> GPIO_IDR_8)){ //when s3 is high again it means we have reached turning destination
 			  doneTurning = true; //might need to add more sensor checks 
 		  }
 	  }
@@ -85,7 +85,7 @@ void main (void){
 	  doneTurning = false;
 	  //delay
 	  while (!doneTurning){
-		  if (GPIOB->IDR & GPIO_IDR_14){ //when s3 is high again it means we have reached turning destination
+		  if ((GPIOB->IDR & GPIO_IDR_14)&&(GPIOB-> GPIO_IDR_12)&&(GPIOB-> GPIO_IDR_13)&&(GPIOB-> GPIO_IDR_15)&&(GPIOA-> GPIO_IDR_8)){ //when s3=high,s1,s2,s4,s5=low again it means we have reached turning destination
 			  doneTurning = true; //might need to add more sensor checks 
 		  }
 	  }
@@ -96,7 +96,7 @@ void main (void){
 	  doneTurning = false;
 	  //delay
 	  while (!doneTurning){
-		  if (GPIOB->IDR & GPIO_IDR_14){ //when s3 is high again it means we have reached turning destination
+		  if ((GPIOB->IDR & GPIO_IDR_14)&&(GPIOB-> GPIO_IDR_12)&&(GPIOB-> GPIO_IDR_13)&&(GPIOB-> GPIO_IDR_15)&&(GPIOA-> GPIO_IDR_8)){ //when s3 is high again it means we have reached turning destination
 			  doneTurning = true; //might need to add more sensor checks 
 		  }
 	  }
@@ -104,7 +104,6 @@ void main (void){
   	else if ((GPIOA->IDR & GPIO_IDR_8)&&(GPIOB->IDR & GPIO_IDR_15)&&(GPIOB->IDR & GPIO_IDR_14)&&(GPIOB->IDR & GPIO_IDR_13)&&(GPIOB->IDR & GPIO_IDR_12)&&(GPIOA->IDR & GPIO_IDR_9)){
 	  stop();
 	  endMaze();//need to make
-	
   	}
 	else{ //no sensors are high = deadend 
 		stop();
@@ -112,7 +111,7 @@ void main (void){
 		doneTurning = false;
 		//delay 
 	  while (!doneTurning){
-		  if (GPIOB->IDR & GPIO_IDR_14){ //when s3 is high again it means we have reached turning destination
+		  if ((GPIOB->IDR & GPIO_IDR_14)&&(GPIOB-> GPIO_IDR_12)&&(GPIOB-> GPIO_IDR_13)&&(GPIOB-> GPIO_IDR_15)&&(GPIOA-> GPIO_IDR_8)){ //when s3 is high again it means we have reached turning destination
 			  doneTurning = true; //might need to add more sensor checks 
 		  }
 	  }
