@@ -19,7 +19,12 @@ void init_GPIO(void);
 void init_pwm(void);
 void init_EXTI(void);
 void init_NVIC(void);
-
+void turnLeft(void);
+void turnRight(void);
+void straight(void);
+void turnAround (void);
+void endMaze(void);
+void stop(void);
 
 // --------------------------------------------------MAIN-------------------------------------------
 void main (void){
@@ -40,6 +45,7 @@ void main (void){
 	  // go straight
   	}
   	else if ((GPIOB->IDR & GPIO_IDR_12)&&(GPIOB->IDR & GPIO_IDR_13)){ // -
+	  stop();
 	  turnRight(); //lock rotation - need to make 
 	  doneTurning = false;
 	  //delay
@@ -52,6 +58,7 @@ void main (void){
 	  
   	}
   	else if ((GPIOA->IDR & GPIO_IDR_8)&&(GPIOB->IDR & GPIO_IDR_15)&&(GPIOB->IDR & GPIO_IDR_14)){ // -|
+	  stop();
 	  turnLeft(); //need to make
 	  doneTurning = false;
 	  //delay
@@ -62,6 +69,7 @@ void main (void){
 	  }
   	}
   	else if ((GPIOA->IDR & GPIO_IDR_8)&&(GPIOB->IDR & GPIO_IDR_15)){ // -
+	  stop();
 	  turnLeft(); //need to make
 	  doneTurning = false;
 	  //delay
@@ -72,6 +80,7 @@ void main (void){
 	  }
   	}
   	else if ((GPIOA->IDR & GPIO_IDR_8)&&(GPIOB->IDR & GPIO_IDR_15)&&(GPIOB->IDR & GPIO_IDR_13)&&(GPIOB->IDR & GPIO_IDR_12)){ //T
+	  stop();
 	  turnLeft(); //need to make
 	  doneTurning = false;
 	  //delay
@@ -82,6 +91,7 @@ void main (void){
 	  }
   	}
   	else if ((GPIOA->IDR & GPIO_IDR_8)&&(GPIOB->IDR & GPIO_IDR_15)&&(GPIOB->IDR & GPIO_IDR_14)&&(GPIOB->IDR & GPIO_IDR_13)&&(GPIOB->IDR & GPIO_IDR_12)){ //4 way
+	  stop();
 	  turnLeft(); //need to make
 	  doneTurning = false;
 	  //delay
@@ -92,10 +102,12 @@ void main (void){
 	  }
   	}
   	else if ((GPIOA->IDR & GPIO_IDR_8)&&(GPIOB->IDR & GPIO_IDR_15)&&(GPIOB->IDR & GPIO_IDR_14)&&(GPIOB->IDR & GPIO_IDR_13)&&(GPIOB->IDR & GPIO_IDR_12)&&(GPIOA->IDR & GPIO_IDR_9)){
+	  stop();
 	  endMaze();//need to make
-	  LED_ON(); //need to make
+	
   	}
 	else{ //no sensors are high = deadend 
+		stop();
 		turnAround();
 		doneTurning = false;
 		//delay 
@@ -109,6 +121,24 @@ void main (void){
 
 	}
 }
+//--------------------------------------------TURN FUNCTIONS---------------------------------------
+void turnLeft(void){
+ 	GPIOA ->ODR |= LeftMotorForward;
+}
+
+void turnRight(void){
+	GPIOA ->ODR |= RightMotorForward;
+}
+
+void turnAround(void){
+	GPIOA->ODR |= TurnRightMotors;
+}
+
+void endMaze(void){
+	buttonPressed= false;
+	GPIOB->ODR|=0b10; //set LED on PB1 high
+}	
+
 // ---------------------------------------------INIT GPIO-------------------------------------------
 void init_GPIO(void)
 {
@@ -136,7 +166,7 @@ void init_GPIO(void)
 
 /* Motor IC */
 	GPIOA ->MODER |=0b01010010100101;//Set PA3, PA2 AF mode and set PA0,A1,A5,A6 to output mode
-	GPIOA ->ODR |= 0b1000010; //Turns motor
+	GPIOA ->ODR |=0b0000000000000000; //set all outputs low initially
 }
 
 void init_pwm(void)
@@ -162,4 +192,3 @@ void init_pwm(void)
   	TIM2->CR1 |= TIM_CR1_CEN; // counter enable
 
 }
-
