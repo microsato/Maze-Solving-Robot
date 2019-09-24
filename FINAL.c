@@ -1,13 +1,15 @@
 /*------------------------------------------------EEE3099S LINE FOLLOWER ROBOT----------------------
- * Title: 		EEE3099S LINE FOLLOWER ROBOT
+ * Title:			EEE3099S LINE FOLLOWER ROBOT
  * Authors: 		Mic Rosato, Kai Brown, Jack Forrest, Tapiwa Courtz
  * Date Created:	19/09/2019
  * Last Modified:	23/09/2019
 */
+
 //------------------------------------------------Included Libraries--------------------------------
 #include "stm32f0xx.h"
 #include <stdio.h>
 #include <string.h>
+
 /*------------------------------------------------I/O Explanation-----------------------------------
 Sensors: (inputs)
 Sensor 1 (outer right) = PB12
@@ -25,6 +27,7 @@ SW0: Reset (pin 7)
 SW1: PB10 (input) (needs Pull up - switch connects to ground)
 LED0: PB1
 */
+
 //------------------------------------------------Variables ----------------------------------------
 typedef int bool;
 #define true 1
@@ -48,8 +51,8 @@ int S3 = GPIO_IDR_14;
 int S4 = GPIO_IDR_15;
 int S5 = GPIO_IDR_8;
 int S6 = GPIO_IDR_9;
-int AllInputsLowA = GPIO_IDR_8|GPIO_IDR_9;
-int AllInputsLowB = GPIO_IDR_12|GPIO_IDR_8|GPIO_IDR_8|GPIO_IDR_8;
+int AllInputsLow1 = GPIO_IDR_12|GPIO_IDR_13|GPIO_IDR_14|GPIO_IDR_15;
+int AllInputsLow2 = GPIO_IDR_8|GPIO_IDR_9;
 //Switch and LED
 int SW1 = GPIO_IDR_10;
 int LED = GPIO_ODR_1;
@@ -69,33 +72,50 @@ void stop(void);
 int main (void){					//JUST FOR TESTING PURPOSES FOR NOW
   	init_GPIO();
 	init_pwm();
-	init_EXTI4_15();				//initial setup done
 	GPIOA->ODR &= AllOutputsLow;	//prevent motors moving from previous debug session
 	while(1){						//infinite loop, with alternating states
-
+		while(State == 0){			//State 0: Waiting
+		}
+		while(State == 1){			//State 1: Solving
+			//Polling sensors and calls to decide() function here. State set from 1 to 3 in decide().
+			if (!(GPIOB->IDR & S1)){
+				GPIOA->ODR &= AllOutputsLow;
+				GPIOA->ODR &= MotorsForward;
+			}
+			if (!(GPIOB->IDR & S2)){
+				GPIOA->ODR &= AllOutputsLow;
+			}
+			if (!(GPIOB->IDR & S4)){
+				GPIOA->ODR &= AllOutputsLow;
+				GPIOA->ODR &= TurnMotorsLeft;
+			}
+			if (!(GPIOA->IDR & S5)){
+				GPIOA->ODR &= AllOutputsLow;
+				GPIOA->ODR &= TurnMotorsRight;
+			}
+		}
+		while(State == 2){			//State 2: Paused (Solving)
+			GPIOA->ODR &= AllOutputsLow;
+		}
+		while(State == 3){			//State 3: Waiting (Solved)
+			GPIOA->ODR &= AllOutputsLow;
+		}
+		while(State == 4){			//State 4: Racing
+			//Polling sensors and calls to decide() function, but with different execution
+		}
+		while(State == 5){			//State 5: Paused (Racing)
+			GPIOA->ODR &= AllOutputsLow;
+		}
 	}
-}
-//--------------------------------------------TURN FUNCTIONS---------------------------------------
-void turnLeft(void){
-
+	return(1);
 }
 
-void turnRight(void){
-
-}
-
-void turnAround(void){
-
-}
-
-void endMaze(void){
-
-}
 //--------------------------------------------EXTI4_15_IRQHandler-----------------------------------
 void EXTI4_15_IRQHandler(void){
 	EXTI -> PR |= EXTI_PR_PR3; // clear the interrupt pending bit
+	GPIOB->ODR |= LED; //set LED high
 	//state variable: 0- waiting, 1- solving, 2- paused(solving), 3- waiting(solved), 4- racing, 5- paused(racing).
-	if(State == 0){			//button pressed to start the program
+	/*if(State == 0){			//button pressed to start the program
 		State++;
 	}
 	else if(State == 1){	//pressed while solving, pauses solving
@@ -113,6 +133,24 @@ void EXTI4_15_IRQHandler(void){
 	else{					//pressed while paused(racing), resumes racing
 		State--;
 	}
+	*/
+}
+
+//--------------------------------------------TURN FUNCTIONS---------------------------------------
+void turnLeft(void){
+
+}
+
+void turnRight(void){
+
+}
+
+void turnAround(void){
+
+}
+
+void endMaze(void){
+
 }
 
 // ---------------------------------------------INIT GPIO-------------------------------------------
