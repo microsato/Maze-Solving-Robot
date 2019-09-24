@@ -61,38 +61,28 @@ int LED = GPIO_ODR_1;
 void init_GPIO(void);
 void init_pwm(void);
 void init_EXTI4_15(void);
-void turnLeft(void);
-void turnRight(void);
+void EXTI4_15_IRQHandler(void);
+
 void straight(void);
 void turnAround (void);
-void endMaze(void);
 void stop(void);
+void turnLeft(void);
+void turnRight(void);
+void delay();
 
 // --------------------------------------------------MAIN-------------------------------------------
 int main (void){					//JUST FOR TESTING PURPOSES FOR NOW
   	init_GPIO();
 	init_pwm();
+	init_EXTI4_15();
 	GPIOA->ODR &= AllOutputsLow;	//prevent motors moving from previous debug session
+	GPIOB->ODR &= ~LED; //set LED low
 	while(1){						//infinite loop, with alternating states
 		while(State == 0){			//State 0: Waiting
 		}
 		while(State == 1){			//State 1: Solving
 			//Polling sensors and calls to decide() function here. State set from 1 to 3 in decide().
-			if (!(GPIOB->IDR & S1)){
-				GPIOA->ODR &= AllOutputsLow;
-				GPIOA->ODR &= MotorsForward;
-			}
-			if (!(GPIOB->IDR & S2)){
-				GPIOA->ODR &= AllOutputsLow;
-			}
-			if (!(GPIOB->IDR & S4)){
-				GPIOA->ODR &= AllOutputsLow;
-				GPIOA->ODR &= TurnMotorsLeft;
-			}
-			if (!(GPIOA->IDR & S5)){
-				GPIOA->ODR &= AllOutputsLow;
-				GPIOA->ODR &= TurnMotorsRight;
-			}
+			//**********************
 		}
 		while(State == 2){			//State 2: Paused (Solving)
 			GPIOA->ODR &= AllOutputsLow;
@@ -107,50 +97,53 @@ int main (void){					//JUST FOR TESTING PURPOSES FOR NOW
 			GPIOA->ODR &= AllOutputsLow;
 		}
 	}
-	return(1);
 }
 
-//--------------------------------------------EXTI4_15_IRQHandler-----------------------------------
-void EXTI4_15_IRQHandler(void){
-	EXTI -> PR |= EXTI_PR_PR3; // clear the interrupt pending bit
-	GPIOB->ODR |= LED; //set LED high
-	//state variable: 0- waiting, 1- solving, 2- paused(solving), 3- waiting(solved), 4- racing, 5- paused(racing).
-	/*if(State == 0){			//button pressed to start the program
-		State++;
-	}
-	else if(State == 1){	//pressed while solving, pauses solving
-		State++;
-	}
-	else if(State == 2){	//pressed while paused(solving), resumes solving
-		State--;
-	}
-	else if(State == 3){	//pressed while solved, starts racing
-		State++;
-	}
-	else if(State == 4){	//pressed while racing, pauses racing
-		State++;
-	}
-	else{					//pressed while paused(racing), resumes racing
-		State--;
-	}
-	*/
-}
 
 //--------------------------------------------TURN FUNCTIONS---------------------------------------
+void stop(void){
+	GPIOA ->ODR |= AllOutputsLow;
+	Delay(8000);
+}
+void straight(void){
+	GPIOA ->ODR &= AllOutputsLow;
+	GPIOA ->ODR |= MotorsForward ;
+}
 void turnLeft(void){
-
+	GPIOA ->ODR = 0;
+ 	GPIOA ->ODR |= TurnMotorsLeft;
+ 	Delay(8000);
 }
 
 void turnRight(void){
-
+	GPIOA ->ODR &= AllOutputsLow;
+	GPIOA ->ODR |= TurnMotorsRight;
+	Delay(8000);
 }
 
 void turnAround(void){
-
+	stop();
+	//GPIOA ->ODR &= AllOutputsLow;
+	//GPIOA->ODR |= TurnMotorsRight;
+	//Delay(8000);
 }
 
-void endMaze(void){
+void LeftAdjust(void){
+	GPIOA ->ODR &= AllOutputsLow;
+	GPIOA ->ODR |= TurnMotorsLeft;
+}
 
+void RightAdjust(void){
+	GPIOA ->ODR &= AllOutputsLow;
+	GPIOA ->ODR |= TurnMotorsRight;
+}
+
+void Delay(int n){
+	for (int i = 0; i<= n; i++){
+		for (int x = 0; x <= 1000; x++){
+			
+		}
+	}
 }
 
 // ---------------------------------------------INIT GPIO-------------------------------------------
@@ -214,8 +207,39 @@ void init_pwm(void){
 // ---------------------------------------------INIT EXTI4_15---------------------------------------
 void init_EXTI4_15(void){
 	RCC -> APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN; // enable clock for	the sys conf controller
-	SYSCFG -> EXTICR[3] |= SYSCFG_EXTICR3_EXTI10_PB; // map PB10 to EXTI3
+	SYSCFG -> EXTICR[2] |= 0b00000000000000000000000100000000; // map PB10 to EXTI3
 	EXTI -> IMR |= EXTI_IMR_MR10; // unmask external interrupt 10
 	EXTI -> FTSR |= EXTI_FTSR_TR10; // trigger on falling edge
 	NVIC_EnableIRQ(EXTI4_15_IRQn); // enable EXTI4_15 interrupt in the NVIC
 }
+
+//--------------------------------------------EXTI4_15_IRQHandler-----------------------------------
+void EXTI4_15_IRQHandler(void){
+	EXTI -> PR |= EXTI_PR_PR10; // clear the interrupt pending bit
+	if (GPIOB->ODR & LED){
+		GPIOB->ODR |= LED; //set LED high
+	}
+	else{
+		GPIOB->ODR &= ~LED; //set LED low
+	}
+	//state variable: 0- waiting, 1- solving, 2- paused(solving), 3- waiting(solved), 4- racing, 5- paused(racing).
+	if(State == 0){			//button pressed to start the program
+		State++;
+	}
+	else if(State == 1){	//pressed while solving, pauses solving
+		State++;
+	}
+	else if(State == 2){	//pressed while paused(solving), resumes solving
+		State--;
+	}
+	else if(State == 3){	//pressed while solved, starts racing
+		State++;
+	}
+	else if(State == 4){	//pressed while racing, pauses racing
+		State++;
+	}
+	else{					//pressed while paused(racing), resumes racing
+		State--;
+	}
+}
+
