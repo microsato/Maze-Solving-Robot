@@ -101,50 +101,6 @@ int main (void){					//JUST FOR TESTING PURPOSES FOR NOW
 
 
 //--------------------------------------------TURN FUNCTIONS---------------------------------------
-void stop(void){
-	GPIOA ->ODR |= AllOutputsLow;
-	Delay(8000);
-}
-void straight(void){
-	GPIOA ->ODR &= AllOutputsLow;
-	GPIOA ->ODR |= MotorsForward ;
-}
-void turnLeft(void){
-	GPIOA ->ODR = 0;
- 	GPIOA ->ODR |= TurnMotorsLeft;
- 	Delay(8000);
-}
-
-void turnRight(void){
-	GPIOA ->ODR &= AllOutputsLow;
-	GPIOA ->ODR |= TurnMotorsRight;
-	Delay(8000);
-}
-
-void turnAround(void){
-	stop();
-	//GPIOA ->ODR &= AllOutputsLow;
-	//GPIOA->ODR |= TurnMotorsRight;
-	//Delay(8000);
-}
-
-void LeftAdjust(void){
-	GPIOA ->ODR &= AllOutputsLow;
-	GPIOA ->ODR |= TurnMotorsLeft;
-}
-
-void RightAdjust(void){
-	GPIOA ->ODR &= AllOutputsLow;
-	GPIOA ->ODR |= TurnMotorsRight;
-}
-
-void Delay(int n){
-	for (int i = 0; i<= n; i++){
-		for (int x = 0; x <= 1000; x++){
-			
-		}
-	}
-}
 
 // ---------------------------------------------INIT GPIO-------------------------------------------
 void init_GPIO(void)
