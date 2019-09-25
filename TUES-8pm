@@ -25,6 +25,16 @@ SW0: Reset (pin 7)
 SW1: PB10 (input) (needs Pull up - switch connects to ground)
 LED0: PB1
 */
+/*==================================================================================================
+ALGORITHM VARIABLES
+//==================================================================================================*/
+int west = 1;
+int north = 2;
+int east = 3;
+int south = 4;
+int direction = north;
+int Path[100]={0};
+int pathLength;
 //------------------------------------------------Variables ----------------------------------------
 typedef int bool;
 #define true 1
@@ -86,7 +96,7 @@ while(1){
 	if ((GPIOB->IDR & S2)){ //Adjust Right &&!(GPIOB->IDR & S4
 			AdjustRight();
 	}
-	if ((GPIOB->IDR &S4)){ //Adjust Left &&!(GPIOB->IDR & S2)
+	if ((GPIOB->IDR & S4)){ //Adjust Left &&!(GPIOB->IDR & S2)
 			AdjustLeft();
 	}
 	if ((GPIOB->IDR & S3)&&!(GPIOB->IDR & S1)&&!(GPIOB->IDR & S2)&&!(GPIOB->IDR & S4)&&!(GPIOB->IDR & S5)&&!(GPIOB->IDR & S6)){
@@ -106,7 +116,8 @@ while(1){
 		if(GPIOB->IDR & S1){Sen1 = 1;}else{Sen1 = 0;}
 		if(GPIOB->IDR & S3){Sen3 = 1;}else{Sen3 = 0;}
 		if(GPIOA->IDR & S5){Sen5 = 1;}else{Sen5 = 0;}	//convert binary to boolean
-		decide(Sen1, Sen3, Sen5);
+		decide(Sen1, Sen3, Sen5); 
+		
 	}
 
 
@@ -131,15 +142,22 @@ while(1){
 }
 //--------------------------------------------TURN FUNCTIONS---------------------------------------
 void decide(int sensor1, int sensor3, int sensor5){
+	global turn;
 	if (!sensor1 && !sensor3 && !sensor5){//dead-end
 		turnAround();
+		turn = 2;
+		New_Direction();
 	}
 	else if (sensor1 && !sensor3 && sensor5){//T junction
 		GPIOB -> ODR &=~LED;
 		turnLeft();
+		turn = -1;
+		New_Direction();
 	}
 	else{
 		straight();
+		turn = 0;
+		New_Direction();
 	}
 }
 
@@ -165,7 +183,7 @@ void turnLeft(void){
 	straight();
 	delay(90);
 	GPIOA ->ODR &= AllOutputsLow;
- 	GPIOA ->ODR |= TurnMotorsLeft;
+ 	GPIOA ->ODR |= TurnMotorsLeft; 
  	delay(212);
  	stop();
 }
@@ -255,4 +273,76 @@ void init_pwm(void){
   	TIM2->CR1 |= TIM_CR1_CEN; // counter enable
 }
 
+/*==================================================================================================
+ALGORITHM FUNCTIONS
+//==================================================================================================*/
+void Direction_Decide()
+{
+	if(Direction == 1){
+	
+	}
+	if(Direction ==2 ){
+	
+	}
+	if(Direction ==3 ){
+	}
+	elsif(Direction == 4){
+
+	}
+}
+
+void New_Direction(int turn)
+{
+	if (turn = -1 && direction> 1)// left turn
+	{
+		direction = direction + turn;
+	}elsif(turn = -1 && direction= 1){
+		direction = 4; 
+	}elsif(turn = 0){ // straight
+		direction = direction;
+	}elsif(turn = 1 && direction<4) // right turn
+		direction = direction+ turn;
+	}elsif(turn = 1 && direction=4)
+		direction = 1;
+	}elsif(turn = 2 && direction= 4){
+		direction = 2;
+	}elsif(turn = 2 && direction= 1){
+		direction = 3;
+	}elsif(turn = 2 && direction= 2){
+		direction = 4;
+	}elsif(turn = 2 && direction= 3){
+		direction = 1;
+	}else{direction = direction;}	
+}
+
+void Solve()
+{
+	global direction;
+	int shortDone=0;
+	if (pathLength < 3){
+		path[pathLength] = direction;
+		pathLength -= 1; 
+		shortDone = 1;
+	}elsif(path[pathLength-2] == 1 && path[pathLength-1]== 3 && shortDone ==0 ){
+		path[pathLength-2] = path[pathLength];
+		pathLength -= 2;
+		shortDone = 1;
+	}elsif(path[pathLength-2] == 3 && path[pathLength-1]== 1 && shortDone ==0 ){
+		path[pathLength-2] = path[pathLength];
+		pathLength -= 3;
+		shortDone = 1;
+	}elsif(path[pathLength-2] == 2 && path[pathLength-1]== 4 && shortDone ==0 ){
+		path[pathLength-2] = path[pathLength];
+		pathLength -= 3;
+		shortDone = 1;
+	}elsif(path[pathLength-2] == 4 && path[pathLength-1]== 2 && shortDone ==0 ){
+		path[pathLength-2] = path[pathLength];
+		pathLength -= 3;
+		shortDone = 1;
+	}else{
+		path[pathLength] = direction;
+		shortDone = 1;
+	}
+	pathLength ++;
+}
 
