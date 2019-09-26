@@ -52,9 +52,23 @@ int S5 = GPIO_IDR_8;
 int S6 = GPIO_IDR_9;
 int AllInputsLowA = GPIO_IDR_8|GPIO_IDR_9;
 int AllInputsLowB = GPIO_IDR_12|GPIO_IDR_8|GPIO_IDR_8|GPIO_IDR_8;
+//Decide Function inputs
+int Sen1;
+int Sen3;
+int Sen5;
+
 //Switch and LED
 int SW1 = GPIO_IDR_10;
 int LED = GPIO_ODR_1;
+int numpress = 0;
+bool moving = false;
+
+//Solving variables
+int turnNum = 0 ;           //Keeps the number of turns to fill up the firstSolve Array
+char firstSolve[100] = "";  // Array of the turns the car makes to solve the maze the first time
+char finalSolve[50]= "";    //Array of turns the car must make to solve the maze the second time
+bool LHR = false;
+bool RHR = false;
 
 void init_GPIO(void);
 void init_pwm(void);
@@ -63,147 +77,257 @@ void init_NVIC(void);
 void turnLeft(void);
 void turnRight(void);
 void straight(void);
+void turnStraight();
 void turnAround (void);
 void endMaze(void);
 void stop(void);
-
+void delay(int);
+void AdjustRight(void);
+void AdjustLeft(void);
+void decideLHR(int, int, int);
+void decideRHR(int, int, int);
+void endMaze();
 // --------------------------------------------------MAIN-------------------------------------------
-void main (void){
+int main (void){
    	init_GPIO();
 	init_pwm();
-while(1){
-	if (!(GPIOB->IDR & GPIO_IDR_10)){ //if button on PB10 pressed (goes low)
-		buttonPressed = true;
-		GPIOB -> ODR |=0b10;
-
-	}
-
-	while(buttonPressed){
-
-	if ((GPIOB->IDR & S3 )){ //if only s3 high
-	  straight();
-	  //go straight motor
-  	}
-	else if (GPIOB->IDR S2){
-		turnLeft();
-		doneTurning = false;
-		//delay
-		while (!doneTurning){
-			//might need delay here
-			if ((GPIOB->IDR & S3)&&(GPIOB->IDR & S3)){ //when s3 is high again it means we have reached turning destination
-				doneTurning = true; //might need to add more sensor checks
+    while(1){
+        if (!(GPIOB->IDR & GPIO_IDR_10)){      //if button on PB10 pressed (goes low)
+            moving = true;
+            LHR=true;
+        }
+        else if (!(GPIOB->IDR & GPIO_IDR_11)){ //
+        	moving = true;
+        	RHR = true;
+        }
+        while(moving ==true && LHR ==true){
+            if ((GPIOB->IDR & S2)&&(GPIOB->IDR & S3)){                             //Adjust Right &&!(GPIOB->IDR & S4)
+                AdjustRight();
+            }
+            if ((GPIOB->IDR &S4)&&(GPIOB->IDR & S3)){                              //Adjust Left &&!(GPIOB->IDR & S2)
+                AdjustLeft();
+            }
+            /*if ((GPIOB->IDR & S3)&&(~GPIOB->IDR & S2)&&(~GPIOB->IDR & S4)){//maybe take out adjustment sensors
+                straight();
+            }*/
+            if ((GPIOB->IDR &S1)||(GPIOA->IDR & S5)){           //if either side sensor goes high (will happen at all turns)
+                delay(10);
+                stop();                                         //when one sensor is high stop
+                if(GPIOB->IDR & S1){Sen1 = 1;}else{Sen1 = 0;}   //read in right sensor and convert to bool
+                if(GPIOA->IDR & S5){Sen5 = 1;}else{Sen5 = 0;}   // read in left sensor and convert to bool
+                straight(); //go forward for a bit
+                delay(98);  //go forward for a bit
+                stop();
+                if ((GPIOB->IDR & S1)&&(GPIOB->IDR & S2)&&(GPIOB->IDR & S3)&&(GPIOB -> IDR & S4)&&(GPIOA -> IDR & S5)){
+                	endMaze();
+                }
+                else{
+                	if(GPIOB->IDR & S3){Sen3 = 1;}else{Sen3 = 0;}   // read in front sensor and convert to bool
+                	decideLHR(Sen5, Sen3, Sen1);                       //make turning decision
+                }
+            }
+            else if ((~GPIOB->IDR & S1)&&(~GPIOB->IDR & S2)&&(~GPIOB->IDR & S3)&&(~GPIOB -> IDR & S4)&&(~GPIOA -> IDR & S5)){ //dead end 00000
+                delay(5);
+                stop();                                         //stop at the point where all are low
+                if(GPIOB->IDR & S1){Sen1 = 1;}else{Sen1 = 0;}   //read in all sensors and convert to bool
+                if(GPIOB->IDR & S3){Sen3 = 1;}else{Sen3 = 0;}
+                if(GPIOA->IDR & S5){Sen5 = 1;}else{Sen5 = 0;}	//convert binary to boolean
+                decideLHR(Sen5, Sen3, Sen1);
+            }
+            else{
+            	straight();
+            }
+        }
+        while(moving ==true && RHR ==true){
+			if ((GPIOB->IDR & S2)&&(GPIOB->IDR & S3)){                             //Adjust Right &&!(GPIOB->IDR & S4)
+				AdjustRight();
 			}
-		}
+			if ((GPIOB->IDR &S4)&&(GPIOB->IDR & S3)){                              //Adjust Left &&!(GPIOB->IDR & S2)
+				AdjustLeft();
+			}
+			/*if ((GPIOB->IDR & S3)&&(~GPIOB->IDR & S2)&&(~GPIOB->IDR & S4)){//maybe take out adjustment sensors
+				straight();
+			}*/
+			if ((GPIOB->IDR &S1)||(GPIOA->IDR & S5)){           //if either side sensor goes high (will happen at all turns)
+				delay(10);
+				stop();                                         //when one sensor is high stop
+				if(GPIOB->IDR & S1){Sen1 = 1;}else{Sen1 = 0;}   //read in right sensor and convert to bool
+				if(GPIOA->IDR & S5){Sen5 = 1;}else{Sen5 = 0;}   // read in left sensor and convert to bool
+				straight(); //go forward for a bit
+				delay(98);  //go forward for a bit
+				stop();
+				if ((GPIOB->IDR & S1)&&(GPIOB->IDR & S2)&&(GPIOB->IDR & S3)&&(GPIOB -> IDR & S4)&&(GPIOA -> IDR & S5)){
+					endMaze();
+				}
+				else{
+					if(GPIOB->IDR & S3){Sen3 = 1;}else{Sen3 = 0;}   // read in front sensor and convert to bool
+					decideRHR(Sen5, Sen3, Sen1);                       //make turning decision
+					}
+				}
+				else if ((~GPIOB->IDR & S1)&&(~GPIOB->IDR & S2)&&(~GPIOB->IDR & S3)&&(~GPIOB -> IDR & S4)&&(~GPIOA -> IDR & S5)){ //dead end 00000
+					delay(5);
+					stop();                                         //stop at the point where all are low
+					if(GPIOB->IDR & S1){Sen1 = 1;}else{Sen1 = 0;}   //read in all sensors and convert to bool
+					if(GPIOB->IDR & S3){Sen3 = 1;}else{Sen3 = 0;}
+					if(GPIOA->IDR & S5){Sen5 = 1;}else{Sen5 = 0;}	//convert binary to boolean
+					decideRHR(Sen5, Sen3, Sen1);
+				}
+				else{
+					straight();
+				}
+			}
 	}
-  	else if ((GPIOB->IDR & S1)&&(GPIOB->IDR & S2)&&(GPIOB->IDR & S3)){ // |-
-		straight();
-	  // go straight
-  	}
-  	else if ((GPIOB->IDR & S1)&&(GPIOB->IDR & S2)){ // -
-	  stop();
-	  turnRight(); //lock rotation - need to make
-	  doneTurning = false;
-	  //delay
-	  while (!doneTurning){
-		  //might need delay here
-		  if ((GPIOB->IDR & S3)){ //when s3 is high again it means we have reached turning destination
-			  doneTurning = true; //might need to add more sensor checks
-		  }
-	  }
+}
 
-  	}
-  	else if ((GPIOA->IDR & S5)&&(GPIOB->IDR & S4)&&(GPIOB->IDR & S3)){ // -|
-	  stop();
-	  turnLeft(); //need to make
-	  doneTurning = false;
-	  //delay
-	  while (!doneTurning){
-		  if (GPIOB->IDR & S3){ //when s3 is high again it means we have reached turning destination
-			  doneTurning = true; //might need to add more sensor checks
-		  }
-	  }
-  	}
-  	else if ((GPIOA->IDR & S5)&&(GPIOB->IDR & S4)){ // -
-	  stop();
-	  turnLeft(); //need to make
-	  doneTurning = false;
-	  //delay
-	  while (!doneTurning){
-		  if ((GPIOB->IDR & S3)&&(GPIOB->IDR & S1)&&(GPIOB->IDR & S2)&&(GPIOB->IDR & S4)&&(GPIOA->IDR & S5)){ //when s3 is high again it means we have reached turning destination
-			  doneTurning = true; //might need to add more sensor checks
-		  }
-	  }
-  	}
-  	else if ((GPIOA->IDR & S5)&&(GPIOB->IDR & S4)&&(GPIOB->IDR & S2)&&(GPIOB->IDR & S1)){ //T
-	  stop();
-	  turnLeft(); //need to make
-	  doneTurning = false;
-	  //delay
-	  while (!doneTurning){
-		  if ((GPIOB->IDR & S3)&&(GPIOB->IDR & S1)&&(GPIOB->IDR & S2)&&(GPIOB->IDR & S4)&&(GPIOA->IDR & S5)){ //when s3=high,s1,s2,s4,s5=low again it means we have reached turning destination
-			  doneTurning = true; //might need to add more sensor checks
-		  }
-	  }
-  	}
-  	else if ((GPIOA->IDR & S5)&&(GPIOB->IDR & S4)&&(GPIOB->IDR & S3)&&(GPIOB->IDR & S2)&&(GPIOB->IDR & S1)){ //4 way
-	  stop();
-	  turnLeft(); //need to make
-	  doneTurning = false;
-	  //delay
-	  while (!doneTurning){
-		  if ((GPIOB->IDR & S3)&&!(GPIOB->IDR & S1)&&(GPIOB->IDR & S2)&&(GPIOB->IDR & S4)&&(GPIOA->IDR & S5)){ //when s3 is high again it means we have reached turning destination
-			  doneTurning = true; //might need to add more sensor checks
-		  }
-	  }
-  	}
-  	else if ((GPIOA->IDR & S4)&&(GPIOB->IDR & S5)&&(GPIOB->IDR & S3)&&(GPIOB->IDR & S2)&&(GPIOB->IDR & S1)&&(GPIOA->IDR & S6)){
-	  stop();
-	  endMaze();//need to make
-  	}
-	else{ //no sensors are high = deadend
-		stop();
+
+
+//--------------------------------------------DECIDE---------------------------------------------------------------------
+void decideLHR(int sensor5, int sensor3, int sensor1){
+	if (sensor5 && !sensor3 && !sensor1){//left turn only 100
+		turnLeft();
+	}
+	else if (!sensor5 && sensor3 && sensor1){//right straight 011
+		turnStraight();
+	    //firstSolve[turnNum] = "S";
+	    //turnNum++;
+	}
+    else if (!sensor5 && !sensor3 && sensor1){//right turn only 001
+		turnRight();
+	}
+    else if (sensor5 && sensor3 && !sensor1){//left straight  110
+		turnLeft();
+        //firstSolve[turnNum] = "L";
+        //turnNum++;
+	}
+    else if (sensor5 && sensor3 && sensor1){//4-way 111
+		turnLeft();
+        //firstSolve[turnNum] = "L";
+        //turnNum++;
+	}
+    else if (!sensor5 && !sensor3 && !sensor1){//dead-end 000
 		turnAround();
-		doneTurning = false;
-		//delay
-	  while (!doneTurning){
-		  if ((GPIOB->IDR & S3)&&!(GPIOB->IDR & S1)&&!(GPIOB->IDR & S2)){ //when s3 is high again it means we have reached turning destination
-			  doneTurning = true; //might need to add more sensor checks
-			  stop();
-		  }
-
-	  }
+        //firstSolve[turnNum] = "B";
+        //turnNum++;
 	}
-
-
+	else if (sensor5 && !sensor3 && sensor1){//T junction 101
+		turnLeft();
+        //firstSolve[turnNum] = "L";
+        //turnNum++;
+	}
+	else{ //shouldn't need this
+		straight();
 	}
 }
+
+void decideRHR(int sensor5, int sensor3, int sensor1){
+	if (sensor5 && !sensor3 && !sensor1){//left turn only 100
+		turnLeft();
+	}
+	else if (!sensor5 && sensor3 && sensor1){//right straight 011
+		turnRight();
+	    //firstSolve[turnNum] = "R";
+	    //turnNum++;
+	}
+    else if (!sensor5 && !sensor3 && sensor1){//right turn only 001
+		turnRight();
+	}
+    else if (sensor5 && sensor3 && !sensor1){//left straight  110
+		turnStraight();
+        //firstSolve[turnNum] = "L";
+        //turnNum++;
+	}
+    else if (sensor5 && sensor3 && sensor1){//4-way 111
+		turnRight();
+        //firstSolve[turnNum] = "L";
+        //turnNum++;
+	}
+    else if (!sensor5 && !sensor3 && !sensor1){//dead-end 000
+		turnAround();
+        //firstSolve[turnNum] = "B";
+        //turnNum++;
+	}
+	else if (sensor5 && !sensor3 && sensor1){//T junction 101
+		turnRight();
+        //firstSolve[turnNum] = "L";
+        //turnNum++;
+	}
+	else{ //shouldn't need this
+		straight();
+	}
 }
-//--------------------------------------------TURN FUNCTIONS---------------------------------------
+//------------------------------------------TURN FUNCTIONS ---------------------------------------------------------
 void stop(void){
-	GPIOA ->ODR |= AllOutputsLow;
+	GPIOA ->ODR &=0;
+	delay(50);
 }
 void straight(void){
 	GPIOA ->ODR &= AllOutputsLow;
 	GPIOA ->ODR |= MotorsForward ;
 }
+void turnStraight(void){
+	GPIOA ->ODR &= AllOutputsLow;
+	GPIOA ->ODR |= MotorsForward ;
+	delay(30);
+}
+
+void AdjustRight(void){
+	GPIOA ->ODR &= AllOutputsLow;
+	GPIOA ->ODR |= LeftMotorForward;
+	/*while (!doneTurning){
+				//might need delay here
+				if (!(GPIOB->IDR & S2)){ //when s4 is low again it means we have reached turning destination
+					doneTurning = true; //might need to add more sensor checks
+				}
+	}*/
+}
+
+void AdjustLeft(void){
+	GPIOA ->ODR &= AllOutputsLow;
+	GPIOA ->ODR |= RightMotorForward;
+	/*while (!doneTurning){
+				//might need delay here
+				if (!(GPIOB->IDR & S4)){ //when s4 is low again it means we have reached turning destination
+					doneTurning = true; //might need to add more sensor checks
+				}
+	}*/
+}
+
 void turnLeft(void){
 	GPIOA ->ODR &= AllOutputsLow;
  	GPIOA ->ODR |= TurnMotorsLeft;
+ 	delay(212);
+ 	stop();
 }
 
 void turnRight(void){
 	GPIOA ->ODR &= AllOutputsLow;
-	GPIOA ->ODR |= TurnMotorsRight;
+ 	GPIOA ->ODR |= TurnMotorsRight;
+ 	delay(212);
+ 	stop();
 }
 
 void turnAround(void){
 	GPIOA ->ODR &= AllOutputsLow;
 	GPIOA->ODR |= TurnMotorsRight;
+	delay(432);
+	stop();
 }
 
 void endMaze(void){
-	buttonPressed= false;
+	moving= false;
 	GPIOB->ODR|=0b10; //set LED on PB1 high
+    //shortestPath(firstSolve);
+}
+
+void delay(int delay1){
+	for (int i=0;i<=delay1;i++){
+		for (int i=0;i<=5000;i++){
+		}
+	}
+}
+//--------------------------------------------SHORTEST PATH ---------------------------------------
+void shortestPath(char firstArray[]){
+    //shorten this
 }
 
 // ---------------------------------------------INIT GPIO-------------------------------------------
@@ -223,14 +347,17 @@ void init_GPIO(void)
     GPIOB->PUPDR|=(GPIO_PUPDR_PUPDR12_1|GPIO_PUPDR_PUPDR13_1|GPIO_PUPDR_PUPDR14_1|GPIO_PUPDR_PUPDR15_1);
 
 	/* Switch and LED */
-	/* set switch PB10 to input*/
+	/* set switch PB10, PB11 to input*/
     GPIOB->MODER &=~(GPIO_MODER_MODER10);
+    GPIOB->MODER &=~(GPIO_MODER_MODER11);
     /* set LED0 PB1 to output */
     GPIOB->MODER &=~(GPIO_MODER_MODER1);
     GPIOB->MODER |=(GPIO_MODER_MODER1_0);
 	/* Pull-up resistor for start switch PB10 */
     GPIOB->PUPDR&=~(GPIO_PUPDR_PUPDR10);
     GPIOB->PUPDR|=(GPIO_PUPDR_PUPDR10_0);
+    GPIOB->PUPDR&=~(GPIO_PUPDR_PUPDR11);
+    GPIOB->PUPDR|=(GPIO_PUPDR_PUPDR11_0);
 
     /* Motor IC */
     /*set PA3, PA2 AF mode*/
@@ -261,7 +388,4 @@ void init_pwm(void){
   	TIM2->CCER |= TIM_CCER_CC4E;
 
   	TIM2->CR1 |= TIM_CR1_CEN; // counter enable
-
 }
-
-
