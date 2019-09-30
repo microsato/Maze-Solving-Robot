@@ -34,9 +34,16 @@ typedef int bool;
 int LorR = 0; //0 is left, 1 is right
 int numTurn = 0;
 int numPress = 0;
-int rightPath [] = {0, 2, 0, 1, 2, 0, 2}; //0 left 1 straight 2 right
-int leftPath [] = {2, 0, 2, 1, 1, 0, 2}; //0 left 1 straight 2 right
 bool moving = false;
+// Algorithm variables
+int west = 1;
+int north = 2;
+int east = 3;
+int south = 4;
+int turn=0;
+int direction = north;
+int Path[100]={0};
+int pathLength = 1;
 //motor commands
 int AllOutputsLow = ~(GPIO_ODR_0|GPIO_ODR_1|GPIO_ODR_5|GPIO_ODR_6); //and with GPIOA_ODR before new command
 int RightMotorForward = GPIO_ODR_0; //Shrivel left
@@ -81,6 +88,9 @@ void AdjustRight(void);
 void AdjustLeft(void);
 void decide(int, int, int, int, int, int);
 void endMaze();
+void New_Direction(int);
+void Solve();
+void Follow();
 // --------------------------------------------------MAIN-------------------------------------------
 int main (void){
    	init_GPIO();
@@ -143,45 +153,88 @@ int main (void){
 //--------------------------------------------DECIDE---------------------------------------------------------------------
 void decide(int sensor5, int sensor3, int sensor1, int LorR, int numPress, int numTurn){
 	if (numPress > 1){	//racing
-		if (LorR == 0){// left path
-			if (leftPath[numTurn] == 0){turnLeft();}
-			else if (leftPath[numTurn] == 1){turnStraight();}
-			else {turnRight();}
-		}
-		else {// right path
-			if (rightPath[numTurn] == 0){turnLeft();}
-			else if (rightPath[numTurn] == 1){turnStraight();}
-			else {turnRight();}
-		}
+		Follow();
 	}
 	else{
 		if (sensor5 && !sensor3 && !sensor1){//left turn only 100
 			turnLeft();
+			turn = -1;
+			New_Direction(turn);
+			Solve();
 		}
 		else if (!sensor5 && sensor3 && sensor1){//right straight 011
-			if (LorR == 0){turnStraight();}	// favor straight over right
-			else {turnRight();}  // favor right over straight
+			if (LorR == 0){
+				turnStraight();
+				turn = 0;
+				New_Direction(turn);
+				Solve();
+			}	// favor straight over right
+			else {
+				turnRight();
+				turn = 1;
+				New_Direction(turn);
+				Solve();
+			}  // favor right over straight
 		}
 		else if (!sensor5 && !sensor3 && sensor1){//right turn only 001
 			turnRight();
+			turn = 1;
+			New_Direction(turn);
+			Solve();
 		}
 		else if (sensor5 && sensor3 && !sensor1){//left straight  110
-			if (LorR == 0){turnLeft();}	// favor left over straight
-			else {turnStraight();}  // favor straight over left
+			if (LorR == 0){
+				turnLeft();
+				turn = -1;
+				New_Direction(turn);
+				Solve();
+			}	// favor left over straight
+			else {
+				turnStraight();
+				turn = 0;
+				New_Direction(turn);
+				Solve();
+			}  // favor straight over left
 		}
 		else if (sensor5 && sensor3 && sensor1){//4-way 111
-			if (LorR == 0){turnLeft();}	// favor left
-			else {turnRight();}  // favor right
+			if (LorR == 0){
+				turnLeft();
+				turn = -1;
+				New_Direction(turn);
+				Solve();
+			}	// favor left
+			else {
+				turnRight();
+				turn = 1;
+				New_Direction(turn);
+				Solve();
+			}  // favor right
 		}
 		else if (!sensor5 && !sensor3 && !sensor1){//dead-end 000
 			turnAround();
+			turn = 2;
+			New_Direction(turn);
+			Solve();
 		}
 		else if (sensor5 && !sensor3 && sensor1){//T junction 101
-			if (LorR == 0){turnLeft();}	// favor left
-			else {turnRight();}  // favor right
+			if (LorR == 0){
+				turnLeft();
+				turn = -1;
+				New_Direction(turn);
+				Solve();
+			}	// favor left
+			else {
+				turnRight();
+				turn = 1;
+				New_Direction(turn);
+				Solve();
+			}  // favor right
 		}
 		else{ //shouldn't need this
 			straight();
+			turn = 0;
+			New_Direction(turn);
+			Solve();
 		}
 	}
 }
@@ -303,3 +356,79 @@ void init_pwm(void){
 
   	TIM2->CR1 |= TIM_CR1_CEN; // counter enable
 }
+// ---------------------------------------------ALGORITHM--------------------------------------------
+void New_Direction(int turn)
+{
+	if (turn = -1 && direction> 1)// left turn
+	{
+		direction = direction + turn;
+	}elsif(turn = -1 && direction= 1){
+		direction = 4; 
+	}elsif(turn = 0){ // straight
+		direction = direction;
+	}elsif(turn = 1 && direction<4) // right turn
+		direction = direction+ turn;
+	}elsif(turn = 1 && direction=4)
+		direction = 1;
+	}elsif(turn = 2 && direction= 4){ // turn around
+		direction = 2;
+	}elsif(turn = 2 && direction= 1){
+		direction = 3;
+	}elsif(turn = 2 && direction= 2){
+		direction = 4;
+	}elsif(turn = 2 && direction= 3){
+		direction = 1;
+	}else{direction = direction;}	
+}
+
+void Solve()
+{
+	global pathLength;
+	global direction;
+	int shortDone=0;
+	if (pathLength < 3){
+		path[pathLength] = direction;
+		pathLength -= 1; 
+		shortDone = 1;
+	}elsif(path[pathLength-2] == 1 && path[pathLength-1]== 3 && shortDone ==0 ){
+		path[pathLength-2] = path[pathLength];
+		pathLength -= 2;
+		shortDone = 1;
+	}elsif(path[pathLength-2] == 3 && path[pathLength-1]== 1 && shortDone ==0 ){
+		path[pathLength-2] = path[pathLength];
+		pathLength -= 3;
+		shortDone = 1;
+	}elsif(path[pathLength-2] == 2 && path[pathLength-1]== 4 && shortDone ==0 ){
+		path[pathLength-2] = path[pathLength];
+		pathLength -= 3;
+		shortDone = 1;
+	}elsif(path[pathLength-2] == 4 && path[pathLength-1]== 2 && shortDone ==0 ){
+		path[pathLength-2] = path[pathLength];
+		pathLength -= 3;
+		shortDone = 1;
+	}else{
+		path[pathLength] = direction;
+		shortDone = 1;
+	}
+	pathLength ++;
+}
+
+void Follow()
+{
+	if(direction < Path[numTurn]){
+		turnRight();
+		turn = 1;
+		New_Direction(turn);
+	}
+	if(direction > Path[numTurn]){
+		turnLeft();
+		turn = -1;
+		New_Direction(turn);
+	}
+	if(direction == Path[numTurn]){
+		turnStraight();
+		turn = 0;
+		New_Direction(turn);
+	}
+}
+
